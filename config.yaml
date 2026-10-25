@@ -1,0 +1,230 @@
+# ============================================================
+# CONFIGURACIÓN DEL AGENTE  (ajustado al formulario real de Cechriza)
+# ============================================================
+
+# Pon aquí la URL de inicio de tu sistema. Luego, en el navegador que se abre,
+# inicias sesión y entras al "Formulario de Ticket" del equipo, y pulsas ENTER.
+url_formulario: "https://osticket.cechriza.com/system/inicio"   # <-- cambia esto
+perfil_navegador: "./perfil_chrome"    # guarda tu sesión (login) para no repetirlo
+
+# Navegación por el menú: Tickets Asignados > Rutas > (pestaña) > tarjeta del ticket
+navegacion:
+  ruta_url: "ticket_asignado"          # enlace de "Rutas" en el menú lateral
+  tab_manana: "Ruta de Mañana"         # pestaña alternativa a "Ruta del Día" (--ruta manana)
+# Quién lee la foto del informe:
+#   gemini    -> GRATIS (clave en https://aistudio.google.com/apikey, variable GEMINI_API_KEY).
+#                Ojo: en el plan gratis Google puede usar lo que envías para mejorar sus productos.
+#   anthropic -> Claude (de pago, variable ANTHROPIC_API_KEY)
+#   ninguno   -> sin IA: 'extraer' solo prepara datos.csv y lo llenas tú en Excel
+proveedor: "gemini"
+modelos_gemini: ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite"]  # prueba en orden
+modelo_llm: "claude-sonnet-5-5"        # solo si proveedor: anthropic
+imagen_informe: "informe.jpg"          # foto del informe dentro de la carpeta de la visita
+
+# origen:  llm    -> lo lee el modelo desde la foto del informe
+#          manual -> lo escribes tú en datos.csv (el informe no lo trae)
+#          foto   -> archivo dentro de la carpeta de la visita (jpg/png/pdf)
+# tipo:    texto | hora | select | multiselect | radio | archivo
+# obligatorio: true -> si queda vacío se marca "SI" en la columna revisar
+# opciones: lista de textos válidos del desplegable (se le dan al modelo)
+# mapa:    texto visible -> value del radio
+#
+# ORDEN IMPORTA: las horas van primero (la página recarga al guardarlas),
+# y el radio En Uso/En Desuso va antes de Falla encontrada (la filtra).
+campos:
+  # ---------- Horas (la página muestra aviso y recarga) ----------
+  hora_inicio:
+    etiqueta: Hora de Inicio
+    origen: llm
+    tipo: hora
+    obligatorio: true
+    ayuda: "Hora de inicio manuscrita (casilla 'Hora de Inicio'), formato HH:MM 24h. null si está vacía."
+    selector: "#hora_inicio_trabajo"
+  hora_fin:
+    etiqueta: Hora Fin
+    origen: llm
+    tipo: hora
+    obligatorio: true
+    ayuda: "Hora de término manuscrita (casilla 'Hora de Termino'), formato HH:MM 24h. null si está vacía."
+    selector: "#hora_fin"
+
+  # ---------- Columna PROCEDIMIENTO ----------
+  estado_equipo:
+    etiqueta: Estado del Equipo
+    origen: llm
+    tipo: select
+    obligatorio: true
+    opciones: [Operativo, Inoperativo, No encontrado, Agencia cerrada, Visita frustrada]
+    ayuda: "Según la casilla marcada en 'Condición y Estado de la máquina' (Operativa -> Operativo, No Operativa -> Inoperativo, No Encontrado -> No encontrado)."
+    defecto: "Operativo"
+    selector: "#id_estado_maquina"
+  numero_informe:
+    etiqueta: Número de Informe
+    origen: llm
+    tipo: texto
+    obligatorio: true
+    ayuda: "Número 'Nº' impreso arriba a la derecha del informe. Solo dígitos."
+    selector: "#num_informe"
+  tipo_ventanilla:
+    etiqueta: Tipo de Ventanilla
+    origen: manual
+    tipo: select
+    obligatorio: true
+    opciones: [Ventanilla, Boveda, Backup, FRONT]
+    selector: "#tipo_ventanilla"
+  ventanilla_a:
+    etiqueta: Ventanilla (1er número)
+    origen: manual
+    tipo: select
+    selector: "#num_ventanilla"
+  ventanilla_b:
+    etiqueta: Ventanilla (2do número)
+    origen: manual
+    tipo: select
+    selector: "#num_ventanilla_1"
+  contador:
+    etiqueta: Contador
+    origen: llm
+    tipo: texto
+    ayuda: "Valor numérico del campo 'Contador' del informe. null si está vacío o es solo una raya."
+    selector: "#contador"
+  foto_contador:
+    etiqueta: Foto de Contador
+    origen: foto
+    tipo: archivo
+    defecto: "contador"
+    selector: "#file_contador"
+  version_software:
+    etiqueta: Versión de Software
+    origen: manual
+    tipo: select
+    obligatorio: true
+    selector: "#version_software"
+  foto_version_software:
+    etiqueta: Foto de Versión de Software
+    origen: foto
+    tipo: archivo
+    defecto: "software"
+    selector: "#file_software"
+  toma_estabilizada:
+    etiqueta: Toma Estabilizada
+    origen: manual
+    tipo: select
+    opciones: ["Si", "No"]
+    selector: "#id_toma_estabilizada"
+  conectividad:
+    etiqueta: Conectividad (opcional)
+    origen: manual
+    tipo: select
+    opciones: [Puerto 4, Puerto 3, "No"]
+    selector: "#conectividad"
+  foto_informe_tecnico:
+    etiqueta: Foto de Informe Técnico
+    origen: foto
+    tipo: archivo
+    obligatorio: true
+    defecto: "informe"
+    selector: "#informe_tecnico"
+  foto_acta:
+    etiqueta: Foto de Acta de Conformidad
+    origen: foto
+    tipo: archivo
+    defecto: "acta"
+    selector: "#acta_conformidad"
+
+  # ---------- Columna derecha ----------
+  estado_previo:
+    etiqueta: Estado previo (Operativo/Inoperativo)
+    origen: llm
+    tipo: radio
+    obligatorio: true
+    opciones: [Operativo, Inoperativo]
+    ayuda: "Según la casilla marcada en 'Condición y Estado de la máquina' (Operativa -> Operativo, No Operativa -> Inoperativo)."
+    defecto: "Operativo"
+    mapa: {Operativo: "1", Inoperativo: "2"}
+    selector: "input[name='id_estado_prev'][value='{valor}']"
+  uso_previo:
+    etiqueta: Estado previo (En Uso/En Desuso)
+    origen: manual
+    tipo: radio
+    obligatorio: true
+    opciones: [En Uso, En Desuso]
+    defecto: "En Uso"
+    mapa: {"En Uso": "1", "En Desuso": "2"}
+    selector: "input[name='id_situacion'][value='{valor}']"
+  falla_encontrada:
+    etiqueta: Falla Encontrada
+    origen: manual
+    tipo: select
+    obligatorio: true
+    defecto: "Ninguna falla"      # solo existe si el equipo estaba En Uso
+    selector: "#id_falla"
+  comentario_falla:
+    etiqueta: Comentario falla encontrada
+    origen: manual
+    tipo: select
+    obligatorio: true
+    defecto: "PRUEBA"             # el sistema exige elegir uno; casi todos se llaman PRUEBA
+    selector: "#id_com_falla"
+  tipo_evaluacion:
+    etiqueta: Tipo de Evaluación
+    origen: llm
+    tipo: select
+    obligatorio: true
+    opciones:
+      - MALA MANIPULACIÓN
+      - DESGASTE DE USO
+      - ACCIDENTE
+      - CORTE DE ENERGÍA ELÉCTRICA O CORRIENTE INESTABLE
+      - POR ALTO USO DEL EQUIPO
+      - NUEVA EMISIÓN DE BILLETES
+      - MANTENIMIENTO PREVENTIVO PROGRAMADO
+      - INSTALACION
+      - SE SOLICITO CAMBIO DE REPUESTO
+      - MANTENIMIENTO GENERAL
+      - FALLA EN CONTEO O EXCESO DE RECHAZO
+      - ELIMINACIÓN DE USUARIO
+    ayuda: "Elige la que mejor encaje con 'Trabajo Realizado' marcado y las observaciones (Preventivo -> MANTENIMIENTO PREVENTIVO PROGRAMADO; Instalación -> INSTALACION; si dice 'mant. general' -> MANTENIMIENTO GENERAL). null si dudas."
+    selector: "#id_evaluacion"
+  solucion:
+    etiqueta: Solución (varias con |)
+    origen: llm
+    tipo: multiselect
+    obligatorio: true
+    opciones:
+      - "Limpieza; configuracion y/o calibracion"
+      - "Se solicita cambio de repuestos"
+      - "Derivar a Taller"
+      - "Actualizacion de Software"
+      - "Validar y tomar datos para inclusión en mejora de software"
+      - "Otros"
+      - "Actualizar inventario"
+      - "Reportar al cliente"
+      - "Se realizo cambio de repuestos"
+      - "Limpieza general y ajustes de depuración"
+    ayuda: "Una o varias opciones válidas. 'Desmontaje y Limpieza general' o 'Ajustes, Calibración y pruebas' marcados -> 'Limpieza; configuracion y/o calibracion'. 'Requiere cambio de partes' -> 'Se solicita cambio de repuestos'. 'Se realizó cambio de partes' -> 'Se realizo cambio de repuestos'. 'Envío a Taller' -> 'Derivar a Taller'. Devuelve una lista JSON."
+    selector: "#id_solucion"
+  detalle_procedimiento:
+    etiqueta: Detalle de Procedimiento
+    origen: llm
+    tipo: texto
+    obligatorio: true
+    ayuda: "Frase corta que una el tipo de trabajo marcado (Instalación/Preventivo/Correctivo/Capacitación/Otro) y las actividades marcadas en 'Descripción'. Ej: 'Mantenimiento preventivo: desmontaje y limpieza general, ajustes, calibración y pruebas.'"
+    selector: "#observaciones"
+  recomendaciones:
+    etiqueta: Recomendaciones
+    origen: llm
+    tipo: texto
+    obligatorio: true
+    ayuda: "Texto manuscrito en 'Observaciones y Recomendaciones', transcrito tal cual (ignora sellos y firmas)."
+    selector: "#recomendaciones"
+  repuestos:
+    etiqueta: Repuestos
+    origen: llm
+    tipo: texto
+    ayuda: "Contenido de 'Relación de repuestos'. null si está vacío."
+    selector: "#relacion_repuestos"
+
+# Botón final (solo se pulsa si usas --enviar). OJO: la pestaña de arriba
+# también dice "Registrar Formulario", por eso se usa el id.
+boton_registrar: "#registrar_formulario_ticket"

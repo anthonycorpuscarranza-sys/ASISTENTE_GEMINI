@@ -1,0 +1,31 @@
+﻿campo,etiqueta,valor,origen,revisar
+hora_inicio,Hora de Inicio,,llm,SI
+hora_fin,Hora Fin,,llm,SI
+estado_equipo,Estado del Equipo,Operativo,llm,
+numero_informe,Número de Informe,445414,llm,
+tipo_ventanilla,Tipo de Ventanilla,,manual,SI
+ventanilla_a,Ventanilla (1er número),,manual,
+ventanilla_b,Ventanilla (2do número),,manual,
+contador,Contador,42293381,llm,
+foto_contador,Foto de Contador,contador,foto,
+version_software,Versión de Software,,manual,SI
+foto_version_software,Foto de Versión de Software,software,foto,
+toma_estabilizada,Toma Estabilizada,,manual,
+conectividad,Conectividad (opcional),,manual,
+foto_informe_tecnico,Foto de Informe Técnico,informe,foto,
+foto_acta,Foto de Acta de Conformidad,acta,foto,
+estado_previo,Estado previo (Operativo/Inoperativo),Operativo,llm,
+uso_previo,Estado previo (En Uso/En Desuso),En Uso,manual,
+falla_encontrada,Falla Encontrada,Ninguna falla,manual,
+comentario_falla,Comentario falla encontrada,PRUEBA,manual,
+tipo_evaluacion,Tipo de Evaluación,MANTENIMIENTO GENERAL,llm,
+solucion,Solución (varias con |),Limpieza; configuracion y/o calibracion | Se solicita cambio de repuestos,llm,
+detalle_procedimiento,Detalle de Procedimiento,"Mantenimiento preventivo: desmontaje y limpieza general, ajustes, calibración y pruebas, requiere cambio de partes.",llm,
+recomendaciones,Recomendaciones,Mant general requiere cambio de repuestos por desgaste. Equipo,llm,SI
+repuestos,Repuestos,"15 IDLE 18
+01 MAIN FEED ROLLER
+01 BLOCK FILTER FAN
+04 RUBBER KICKER D44
+01 US RX CABLE
+01 HARNESS CIS SENSOR MAIN
+01 HARNESS CIS SENSOR SUB.",llm,
