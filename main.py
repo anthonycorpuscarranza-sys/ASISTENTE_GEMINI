@@ -34,6 +34,100 @@ CAMPOS = CFG["campos"]
 SEP = "|"  # separador para campos de varias opciones (Solución)
 
 
+# ------------------------------------------------------------------ #
+# 0) MEMORIA: el agente aprende de tus correcciones
+# ------------------------------------------------------------------ #
+MEM_FILE = BASE / "memoria.json"
+MEM_VACIA = {"visitas": [], "correcciones": [], "ejemplos": {}, "equipos": {}}
+CAMPOS_EJEMPLO = ("detalle_procedimiento", "recomendaciones", "solucion", "tipo_evaluacion")
+
+
+def cargar_memoria() -> dict:
+    try:
+        m = json.loads(MEM_FILE.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        m = {}
+    for k, v in MEM_VACIA.items():
+        m.setdefault(k, type(v)())
+    return m
+
+
+def guardar_memoria(m: dict):
+    MEM_FILE.write_text(json.dumps(m, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def _txt(v) -> str:
+    if isinstance(v, list):
+        v = f" {SEP} ".join(map(str, v))
+    return str(v or "").strip()
+
+
+def texto_memoria() -> str:
+    """Lo aprendido, listo para añadirlo a las instrucciones del modelo."""
+    m = cargar_memoria()
+    partes = []
+    if m["correcciones"]:
+        partes.append("\n\nAPRENDIZAJE - correcciones que hizo el técnico en informes anteriores "
+                      "(no repitas esos errores):")
+        for x in m["correcciones"][-12:]:
+            partes.append(f'- "{x["campo"]}": leíste "{x["llm"][:80]}" pero lo correcto era "{x["final"][:80]}"')
+    ej = [(k, v) for k, v in m["ejemplos"].items() if v]
+    if ej:
+        partes.append("\nEjemplos aprobados por el técnico (imita su estilo y vocabulario):")
+        for k, vals in ej:
+            for v in vals[-3:]:
+                partes.append(f'- "{k}": "{v[:150]}"')
+    return "\n".join(partes)
+
+
+def aprender_visita(carpeta: Path, filas) -> int:
+    """Compara lo que leyó la IA (datos_llm.json) con lo que dejaste en datos.csv y lo guarda."""
+    m = cargar_memoria()
+    clave = str(carpeta.resolve())
+    m["correcciones"] = [x for x in m["correcciones"] if x.get("visita") != clave]
+    try:
+        crudo = json.loads((carpeta / "datos_llm.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        crudo = {}
+    final = {r["campo"]: (r["valor"] or "").strip() for r in filas}
+    nuevas = 0
+    for campo, c in CAMPOS.items():
+        f = final.get(campo, "")
+        if c["origen"] != "llm":
+            continue
+        antes = _txt(crudo.get(campo))
+        if antes and f and norm(antes) != norm(f):
+            m["correcciones"].append({"visita": clave, "campo": campo, "llm": antes, "final": f})
+            nuevas += 1
+        if campo in CAMPOS_EJEMPLO and f:
+            lst = m["ejemplos"].setdefault(campo, [])
+            if f in lst:
+                lst.remove(f)
+            lst.append(f)
+            del lst[:-5]
+    m["correcciones"] = m["correcciones"][-40:]
+    serie = norm(final.get("serie", ""))
+    if serie:  # datos que no cambian entre visitas del mismo equipo
+        pref = {k: final[k] for k, c in CAMPOS.items() if c.get("recordar") and final.get(k)}
+        if pref:
+            m["equipos"][serie] = pref
+    if clave not in m["visitas"]:
+        m["visitas"].append(clave)
+    guardar_memoria(m)
+    return nuevas
+
+
+def cmd_memoria():
+    m = cargar_memoria()
+    console.print(f"Visitas aprendidas: [bold]{len(m['visitas'])}[/] | correcciones guardadas: "
+                  f"[bold]{len(m['correcciones'])}[/] | equipos recordados: [bold]{len(m['equipos'])}[/]")
+    for x in m["correcciones"][-10:]:
+        console.print(f'  corrección · {x["campo"]}: "{x["llm"][:50]}" -> "{x["final"][:50]}"')
+    for s, p in list(m["equipos"].items())[-10:]:
+        console.print(f"  equipo {s}: {p}")
+    console.print(f"[dim]Archivo: {MEM_FILE}[/]")
+
+
 def norm(s) -> str:
     return re.sub(r"\s+", " ", str(s or "")).strip().lower()
 
@@ -50,7 +144,7 @@ def construir_prompt() -> str:
         if c.get("opciones"):
             txt += "  Opciones válidas (copia el texto exacto): " + " | ".join(map(str, c["opciones"]))
         lineas.append(txt)
-    return (
+    base = (
         "Eres un asistente que lee fotos de INFORMES TÉCNICOS manuscritos (empresa Cechriza, Perú).\n"
         "Extrae SOLO los siguientes campos y responde con un único objeto JSON, sin texto extra:\n"
         + "\n".join(lineas)
@@ -59,6 +153,7 @@ def construir_prompt() -> str:
         "Reglas: si un campo está vacío o ilegible usa null (no inventes). "
         "Casillas marcadas con X o tachadas cuentan como marcadas. Escribe en español."
     )
+    return base + texto_memoria()
 
 
 def llamar_gemini(ruta_imagen: Path) -> dict:
@@ -146,11 +241,15 @@ def cmd_extraer(carpeta: Path):
         sys.exit(f"No encuentro la foto del informe: {img}")
     console.print(f"[cyan]Leyendo {img.name} (proveedor: {CFG.get('proveedor', 'gemini')})...[/]")
     leido = llamar_llm(img)
+    (carpeta / "datos_llm.json").write_text(json.dumps(leido, ensure_ascii=False, indent=2), encoding="utf-8")
     dudosos = set(leido.get("dudosos") or [])
+    pref = cargar_memoria()["equipos"].get(norm(_txt(leido.get("serie"))), {})
+    if pref:
+        console.print(f"[green]Equipo conocido: recuerdo {len(pref)} datos de visitas anteriores.[/]")
 
     filas = []
     for k, c in CAMPOS.items():
-        valor = leido.get(k) if c["origen"] == "llm" else None
+        valor = leido.get(k) if c["origen"] == "llm" else pref.get(k)
         if isinstance(valor, list):
             valor = f" {SEP} ".join(map(str, valor))
         if valor in (None, ""):
@@ -418,6 +517,8 @@ def cmd_rellenar(carpeta: Path, enviar: bool, ticket=None, ruta="dia", hora_lleg
     mostrar_tabla(filas)
     if input("\n¿Los datos están correctos? (s/n): ").strip().lower() != "s":
         sys.exit("Corrige datos.csv y vuelve a ejecutar.")
+    n = aprender_visita(carpeta, filas)
+    console.print(f"[green]Memoria actualizada ({n} corrección(es) nueva(s) aprendida(s)).[/]")
 
     with sync_playwright() as p:
         ctx = p.chromium.launch_persistent_context(
@@ -451,6 +552,8 @@ def cmd_rellenar(carpeta: Path, enviar: bool, ticket=None, ruta="dia", hora_lleg
         resultados = []
         for r in filas:
             c, valor = CAMPOS[r["campo"]], (r["valor"] or "").strip()
+            if c["tipo"] == "info":  # solo sirve para recordar el equipo, no se llena en la página
+                continue
             if not valor:
                 resultados.append((r["etiqueta"], "vacío, omitido"))
                 continue
@@ -527,12 +630,15 @@ def main():
             sp.add_argument("--hora-llegada", help="HH:MM a registrar si el ticket aún no tiene hora de llegada")
             sp.add_argument("--sin-navegar", action="store_true", help="no navegar: tú abres el formulario a mano")
     sub.add_parser("inspeccionar")
+    sub.add_parser("memoria", help="muestra lo que el agente ha aprendido")
     a = ap.parse_args()
 
     if a.cmd == "extraer":
         cmd_extraer(a.carpeta)
     elif a.cmd == "rellenar":
         cmd_rellenar(a.carpeta, a.enviar, a.ticket, a.ruta, a.hora_llegada, not a.sin_navegar)
+    elif a.cmd == "memoria":
+        cmd_memoria()
     else:
         cmd_inspeccionar()
 

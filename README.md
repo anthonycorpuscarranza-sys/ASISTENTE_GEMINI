@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Agente: informe técnico → Formulario de Ticket (Cechriza)
 
 Lee la foto de tu informe técnico con Claude (visión), te muestra los datos en una
@@ -14,8 +13,8 @@ playwright install chromium
 **Lector de la foto (gratis):** crea una clave gratuita en https://aistudio.google.com/apikey y guárdala:
 
 ```bash
-setx GEMINI_API_KEY ""        # Windows (cierra y abre la terminal)
-export GEMINI_API_KEY=""      # Mac/Linux
+setx GEMINI_API_KEY "tu-clave"        # Windows (cierra y abre la terminal)
+export GEMINI_API_KEY="tu-clave"      # Mac/Linux
 ```
 
 En `config.yaml`, `proveedor` puede ser `gemini` (gratis, por defecto), `anthropic` (Claude, de pago) o
@@ -62,6 +61,24 @@ el formulario a mano y seguir con ENTER. También puedes saltarte la navegación
 Por defecto NO pulsa "Registrar Formulario": revisas en pantalla y lo envías tú.
 Con `--enviar` lo pulsa por ti, tras pedirte confirmación.
 
+## El agente aprende con el tiempo
+
+No reentrena el modelo: guarda una **memoria** (`memoria.json`) que mejora con cada informe que corriges.
+
+1. `extraer` guarda lo que leyó la IA en `datos_llm.json` (dentro de la carpeta de la visita).
+2. Tú corriges `datos.csv` en Excel.
+3. Al ejecutar `rellenar` y responder `s` ("datos correctos"), el agente compara ambos y **aprende**:
+   - **Tus correcciones** (leyó "X", era "Y"): se las muestra al modelo en la siguiente lectura.
+   - **Tu estilo** al redactar detalle, recomendaciones y solución: lo imita.
+   - **Cada equipo** (por N° de serie): recuerda tipo/n.º de ventanilla, versión de software, toma
+     estabilizada y conectividad, y los rellena solo la próxima vez. Lo que cambia en cada visita
+     (falla encontrada, horas, etc.) no se recuerda.
+4. `python main.py memoria` muestra lo aprendido. Para empezar de cero, borra `memoria.json`.
+
+Mejora cuantas más visitas corrijas, sobre todo si usas siempre el mismo N° de serie bien escrito.
+Privacidad: las correcciones recordadas se envían a Gemini como parte de las instrucciones; no guardes
+en la memoria nada que no quieras enviar. `memoria.json` es un archivo local en tu PC.
+
 ## Qué lee el modelo y qué escribes tú
 
 | Del informe (LLM) | Tú en datos.csv (manual) |
@@ -83,7 +100,3 @@ Con `--enviar` lo pulsa por ti, tras pedirte confirmación.
 - Tu sesión queda guardada en `perfil_chrome/`, no repites el login.
 
 La letra manuscrita puede leerse mal: revisa siempre la tabla antes de rellenar.
-=======
-# ASISTENTE_GEMINI
-gestor de informes tecnicos 
->>>>>>> f1782bd1aa760b0af1360e7626f1f1388ac4f13e
