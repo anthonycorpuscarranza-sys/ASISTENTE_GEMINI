@@ -32,6 +32,18 @@ imagen_informe: "informe.jpg"          # foto del informe dentro de la carpeta d
 # ORDEN IMPORTA: las horas van primero (la página recarga al guardarlas),
 # y el radio En Uso/En Desuso va antes de Falla encontrada (la filtra).
 campos:
+  # ---------- Datos solo de referencia (no se llenan en la página; sirven para que el agente recuerde el equipo) ----------
+  serie:
+    etiqueta: N° de Serie (referencia)
+    origen: llm
+    tipo: info
+    ayuda: "N° de Serie manuscrito en 'Datos del Servicio'. Cópialo tal cual."
+  agencia:
+    etiqueta: Dirección/Agencia (referencia)
+    origen: llm
+    tipo: info
+    ayuda: "Texto manuscrito en 'Dirección/Agencia'."
+
   # ---------- Horas (la página muestra aviso y recarga) ----------
   hora_inicio:
     etiqueta: Hora de Inicio
@@ -71,16 +83,19 @@ campos:
     tipo: select
     obligatorio: true
     opciones: [Ventanilla, Boveda, Backup, FRONT]
+    recordar: true      # el agente lo recuerda para ese equipo (por N° de serie)
     selector: "#tipo_ventanilla"
   ventanilla_a:
     etiqueta: Ventanilla (1er número)
     origen: manual
     tipo: select
+    recordar: true
     selector: "#num_ventanilla"
   ventanilla_b:
     etiqueta: Ventanilla (2do número)
     origen: manual
     tipo: select
+    recordar: true
     selector: "#num_ventanilla_1"
   contador:
     etiqueta: Contador
@@ -99,6 +114,7 @@ campos:
     origen: manual
     tipo: select
     obligatorio: true
+    recordar: true
     selector: "#version_software"
   foto_version_software:
     etiqueta: Foto de Versión de Software
@@ -111,12 +127,14 @@ campos:
     origen: manual
     tipo: select
     opciones: ["Si", "No"]
+    recordar: true
     selector: "#id_toma_estabilizada"
   conectividad:
     etiqueta: Conectividad (opcional)
     origen: manual
     tipo: select
     opciones: [Puerto 4, Puerto 3, "No"]
+    recordar: true
     selector: "#conectividad"
   foto_informe_tecnico:
     etiqueta: Foto de Informe Técnico
